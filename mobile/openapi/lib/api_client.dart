@@ -372,6 +372,8 @@ class ApiClient {
           return MapMarkerResponseDto.fromJson(value);
         case 'MapReverseGeocodeResponseDto':
           return MapReverseGeocodeResponseDto.fromJson(value);
+        case 'MapTheme':
+          return MapThemeTypeTransformer().decode(value);
         case 'MemoriesResponse':
           return MemoriesResponse.fromJson(value);
         case 'MemoriesUpdate':
@@ -436,8 +438,6 @@ class ApiClient {
           return PurchaseUpdate.fromJson(value);
         case 'QueueStatusDto':
           return QueueStatusDto.fromJson(value);
-        case 'RandomSearchDto':
-          return RandomSearchDto.fromJson(value);
         case 'RatingsResponse':
           return RatingsResponse.fromJson(value);
         case 'RatingsUpdate':
@@ -448,8 +448,6 @@ class ApiClient {
           return ReactionTypeTypeTransformer().decode(value);
         case 'ReverseGeocodingStateResponseDto':
           return ReverseGeocodingStateResponseDto.fromJson(value);
-        case 'ScanLibraryDto':
-          return ScanLibraryDto.fromJson(value);
         case 'SearchAlbumResponseDto':
           return SearchAlbumResponseDto.fromJson(value);
         case 'SearchAssetResponseDto':
