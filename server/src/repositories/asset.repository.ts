@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Chunked, ChunkedArray, DummyValue, GenerateSql } from 'src/decorators';
-import { AssetTrashReason } from 'src/dtos/asset.dto';
 import { AssetFileEntity } from 'src/entities/asset-files.entity';
 import { AssetJobStatusEntity } from 'src/entities/asset-job-status.entity';
 import { AssetEntity } from 'src/entities/asset.entity';
@@ -14,7 +13,6 @@ import {
   AssetDeltaSyncOptions,
   AssetExploreFieldOptions,
   AssetFullSyncOptions,
-  AssetPathEntity,
   AssetStats,
   AssetStatsOptions,
   AssetUpdateAllOptions,
@@ -178,14 +176,6 @@ export class AssetRepository implements IAssetRepository {
     return this.getAll(pagination, { ...options, userIds: [userId] });
   }
 
-  @GenerateSql({ params: [{ take: 1, skip: 0 }, DummyValue.UUID] })
-  getExternalLibraryAssetPaths(pagination: PaginationOptions, libraryId: string): Paginated<AssetPathEntity> {
-    return paginate(this.repository, pagination, {
-      select: { id: true, originalPath: true },
-      where: { library: { id: libraryId }, isExternal: true },
-    });
-  }
-
   @GenerateSql({ params: [DummyValue.UUID, DummyValue.STRING] })
   getByLibraryIdAndOriginalPath(libraryId: string, originalPath: string): Promise<AssetEntity | null> {
     return this.repository.findOne({
@@ -199,10 +189,11 @@ export class AssetRepository implements IAssetRepository {
   async getPathsNotInLibrary(libraryId: string, originalPaths: string[]): Promise<string[]> {
     const result = await this.repository.query(
       `
-      WITH paths AS (SELECT unnest($2::text[]) AS path)
-      SELECT path FROM paths
-      WHERE NOT EXISTS (SELECT 1 FROM assets WHERE "libraryId" = $1 AND "originalPath" = path);
-    `,
+        WITH paths AS (SELECT unnest($2::text[]) AS path)
+        SELECT path
+        FROM paths
+        WHERE NOT EXISTS (SELECT 1 FROM assets WHERE "libraryId" = $1 AND "originalPath" = path);
+      `,
       [libraryId, originalPaths],
     );
     return result.map((row: { path: string }) => row.path);
@@ -285,16 +276,6 @@ export class AssetRepository implements IAssetRepository {
       })
       .orWhere({ id: In(options.assetIds) })
       .execute();
-  }
-
-  @Chunked()
-  async softDeleteAll(ids: string[]): Promise<void> {
-    await this.repository.softDelete({ id: In(ids) });
-  }
-
-  @Chunked()
-  async restoreAll(ids: string[]): Promise<void> {
-    await this.updateAll(ids, { trashReason: null, deletedAt: null });
   }
 
   async update(asset: AssetUpdateOptions): Promise<void> {
@@ -819,33 +800,5 @@ export class AssetRepository implements IAssetRepository {
   @GenerateSql({ params: [{ assetId: DummyValue.UUID, type: AssetFileType.PREVIEW, path: '/path/to/file' }] })
   async upsertFile({ assetId, type, path }: { assetId: string; type: AssetFileType; path: string }): Promise<void> {
     await this.fileRepository.upsert({ assetId, type, path }, { conflictPaths: ['assetId', 'type'] });
-  }
-
-  @GenerateSql({
-    params: [
-      {
-        ownerId: DummyValue.UUID,
-      },
-    ],
-  })
-  async restoreAllDeleted(ownerId?: string): Promise<void> {
-    await this.repository.update(
-      { ownerId, trashReason: AssetTrashReason.DELETED },
-      { deletedAt: null, trashReason: null },
-    );
-  }
-
-  @GenerateSql({
-    params: [
-      {
-        ownerId: DummyValue.UUID,
-      },
-    ],
-  })
-  async restoreAllDeletedById(ids: string[]): Promise<void> {
-    await this.repository.update(
-      { id: In(ids), trashReason: AssetTrashReason.DELETED },
-      { deletedAt: null, trashReason: null },
-    );
   }
 }
